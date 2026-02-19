@@ -10,6 +10,8 @@ module RSpec
       # @api private
       class HaveJob
         include RSpec::Mocks::ArgumentMatchers
+        include CountExpectation
+        include ArgumentNormalization
 
         attr_reader :expected_job_class, :expected_arguments, :expected_count
 
@@ -198,18 +200,6 @@ module RSpec
           failed_at >= cutoff
         end
 
-        def set_expected_count(relativity, n)
-          n =
-            case n
-            when Integer then n
-            when :once   then 1
-            when :twice  then 2
-            when :thrice then 3
-            else raise ArgumentError, "Unsupported #{n} in '#{relativity} #{n}'. Use either an Integer, :once, :twice, or :thrice."
-            end
-          @expected_count = [relativity, n]
-        end
-
         def count_matches?(actual)
           case expected_count[0]
           when :positive
@@ -225,17 +215,6 @@ module RSpec
           end
         end
 
-        def count_message
-          case expected_count[0]
-          when :positive
-            "a"
-          when :exactly
-            expected_count[1]
-          else
-            "#{expected_count[0].to_s.gsub('_', ' ')} #{expected_count[1]}"
-          end
-        end
-
         def job_message
           if expected_job_class
             if expected_count[0] == :positive && expected_count.last == 1
@@ -245,20 +224,6 @@ module RSpec
             end
           else
             expected_count.last == 1 ? "job" : "jobs"
-          end
-        end
-
-        def normalize_arguments(args)
-          if args.is_a?(Array)
-            args.map { |x| normalize_arguments(x) }
-          elsif args.is_a?(Hash)
-            args.each_with_object({}) do |(key, value), hash|
-              hash[key.to_s] = normalize_arguments(value)
-            end
-          elsif args.is_a?(Symbol)
-            args.to_s
-          else
-            args
           end
         end
 
