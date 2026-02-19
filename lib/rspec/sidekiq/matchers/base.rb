@@ -4,6 +4,54 @@ module RSpec
   module Sidekiq
     module Matchers
       # @api private
+      module CountExpectation
+        private
+
+        def set_expected_count(relativity, n)
+          n =
+            case n
+            when Integer then n
+            when :once   then 1
+            when :twice  then 2
+            when :thrice then 3
+            else raise ArgumentError, "Unsupported #{n} in '#{relativity} #{n}'. Use either an Integer, :once, :twice, or :thrice."
+            end
+          @expected_count = [relativity, n]
+        end
+
+        def count_message
+          case expected_count[0]
+          when :positive
+            "a"
+          when :exactly
+            expected_count[1]
+          else
+            "#{expected_count[0].to_s.gsub('_', ' ')} #{expected_count[1]}"
+          end
+        end
+      end
+
+      # @api private
+      module ArgumentNormalization
+        private
+
+        def normalize_arguments(args)
+          case args
+          when Array
+            args.map { |x| normalize_arguments(x) }
+          when Hash
+            args.each_with_object({}) do |(key, value), hash|
+              hash[key.to_s] = normalize_arguments(value)
+            end
+          when Symbol
+            args.to_s
+          else
+            args
+          end
+        end
+      end
+
+      # @api private
       class JobOptionParser
         attr_reader :job
 
@@ -198,6 +246,8 @@ module RSpec
       class Base
         include RSpec::Mocks::ArgumentMatchers
         include RSpec::Matchers::Composable
+        include CountExpectation
+        include ArgumentNormalization
 
         attr_reader :expected_arguments, :expected_options, :klass, :actual_jobs, :expected_count
 
@@ -292,18 +342,6 @@ module RSpec
           self
         end
 
-        def set_expected_count(relativity, n)
-          n =
-            case n
-            when Integer then n
-            when :once   then 1
-            when :twice  then 2
-            when :thrice then 3
-            else raise ArgumentError, "Unsupported #{n} in '#{relativity} #{n}'. Use either an Integer, :once, :twice, or :thrice."
-            end
-          @expected_count = [relativity, n]
-        end
-
         def description
           "#{common_message} with arguments #{expected_arguments}"
         end
@@ -350,17 +388,6 @@ module RSpec
           raise NotImplementedError
         end
 
-        def count_message
-          case expected_count[0]
-          when :positive
-            "a"
-          when :exactly
-            expected_count[1]
-          else
-            "#{expected_count[0].to_s.gsub('_', ' ')} #{expected_count[1]}"
-          end
-        end
-
         def failure_message_when_negated
           message = ["expected not to #{common_message} but enqueued #{actual_jobs.count}"]
           message << "  arguments: #{expected_arguments}" if expected_arguments.any?
@@ -370,21 +397,6 @@ module RSpec
 
         def formatted(thing)
           RSpec::Support::ObjectFormatter.format(thing)
-        end
-
-        def normalize_arguments(args)
-          case args
-          when Array
-            args.map { |x| normalize_arguments(x) }
-          when Hash
-            args.each_with_object({}) do |(key, value), hash|
-              hash[key.to_s] = normalize_arguments(value)
-            end
-          when Symbol
-            args.to_s
-          else
-            args
-          end
         end
 
         private
