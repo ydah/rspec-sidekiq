@@ -7,7 +7,7 @@ Gem::Specification.new do |s|
   s.version     = RSpec::Sidekiq::VERSION
   s.platform    = Gem::Platform::RUBY
   s.authors     = ["Aidan Coyle", "Phil Ostler", "Will Spurgin"]
-  s.homepage    = "http://github.com/wspurgin/rspec-sidekiq"
+  s.homepage    = "https://github.com/wspurgin/rspec-sidekiq"
   s.summary     = "RSpec for Sidekiq"
   s.description = "Simple testing of Sidekiq jobs via a collection of matchers and helpers"
   s.license     = "MIT"
