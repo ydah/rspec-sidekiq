@@ -9,4 +9,9 @@ gem 'activerecord', '~> 7.0'
 gem "activemodel", "~> 7.0"
 gem "railties", "~> 7.0"
 
+gem "debug"
+gem "ostruct"
+gem "rake"
+gem "rspec"
+
 gemspec :path => '../'
