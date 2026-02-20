@@ -50,7 +50,8 @@ RSpec.describe 'named queues stubs', stub_named_queues: true do
     end
 
     it 'supports scanning filters on scheduled jobs' do
-      worker.perform_at(1.hour.from_now, 'arg')
+      store = RSpec::Sidekiq::NamedQueues.job_store
+      store.push("class" => worker.to_s, "args" => ["arg"], "at" => 1.hour.from_now.to_f)
 
       expect(Sidekiq::ScheduledSet.new).to have_job(worker).scanning("*#{worker}*")
     end
