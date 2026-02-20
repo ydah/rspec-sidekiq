@@ -21,6 +21,7 @@ jobs:
       matrix:
         ruby-version:
           - 'ruby-head'
+          - '4.0'
           - '3.4'
           - '3.3'
           - '3.2'
@@ -42,6 +43,12 @@ jobs:
           - ruby-version: 'ruby-head'
             gemfile: 'gemfiles/sidekiq6_4_rails6.gemfile'
           - ruby-version: 'ruby-head'
+            gemfile: 'gemfiles/sidekiq6_5_rails6.gemfile'
+          - ruby-version: '4.0'
+            gemfile: 'gemfiles/sidekiq5_rails6.gemfile'
+          - ruby-version: '4.0'
+            gemfile: 'gemfiles/sidekiq6_4_rails6.gemfile'
+          - ruby-version: '4.0'
             gemfile: 'gemfiles/sidekiq6_5_rails6.gemfile'
           - ruby-version: '3.4'
             gemfile: 'gemfiles/sidekiq5_rails6.gemfile'
