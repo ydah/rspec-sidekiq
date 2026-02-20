@@ -17,6 +17,13 @@ RSpec.describe RSpec::Sidekiq::Matchers::HaveJobOption do
       expect(worker).to have_job_option('queue', 'critical')
       expect(worker).to have_job_option(:dead, false)
     end
+
+    it 'matches with fuzzy matchers' do
+      expect(worker).to have_job_option(:retry, anything)
+      expect(worker).to have_job_option(:retry, kind_of(Integer))
+      expect(worker).to have_job_option(:queue, instance_of(String))
+      expect(worker).to have_job_option(:queue, /crit/)
+    end
   end
 
   describe '#have_job_option' do
@@ -54,6 +61,11 @@ RSpec.describe RSpec::Sidekiq::Matchers::HaveJobOption do
       mismatch = described_class.new(:retry, 10)
       expect(mismatch.matches? worker).to be false
     end
+
+    it 'returns false when fuzzy matcher does not fit' do
+      mismatch = described_class.new(:retry, kind_of(String))
+      expect(mismatch.matches? worker).to be false
+    end
   end
 
   describe '#failure_message_when_negated' do
@@ -75,6 +87,12 @@ RSpec.describe RSpec::Sidekiq::Matchers::HaveJobOptions do
   describe 'expected usage' do
     it 'matches' do
       expect(worker).to have_job_options(retry: 5, queue: 'critical', backtrace: true)
+    end
+
+    it 'matches with fuzzy matchers' do
+      expect(worker).to have_job_options(retry: anything, queue: anything)
+      expect(worker).to have_job_options(retry: kind_of(Integer), queue: kind_of(String))
+      expect(worker).to have_job_options(queue: /crit/)
     end
   end
 
@@ -116,6 +134,11 @@ RSpec.describe RSpec::Sidekiq::Matchers::HaveJobOptions do
 
     it 'returns false when mismatches' do
       mismatch = described_class.new(retry: 10)
+      expect(mismatch.matches? worker).to be false
+    end
+
+    it 'returns false when fuzzy matcher does not fit' do
+      mismatch = described_class.new(retry: kind_of(String))
       expect(mismatch.matches? worker).to be false
     end
   end
