@@ -22,17 +22,6 @@ Gem::Specification.new do |s|
   s.add_dependency "rspec-mocks", "~> 3.0"
   s.add_dependency "sidekiq", ">= 5", "< 9"
 
-  s.add_development_dependency "actionmailer"
-  s.add_development_dependency "activejob"
-  s.add_development_dependency "activemodel"
-  s.add_development_dependency "activerecord"
-  s.add_development_dependency "activesupport"
-  s.add_development_dependency "debug"
-  s.add_development_dependency "ostruct"
-  s.add_development_dependency "railties"
-  s.add_development_dependency "rake"
-  s.add_development_dependency "rspec"
-
   s.files = `git ls-files -- lib/*`.split("\n")
   s.files += %w[CHANGES.md LICENSE README.md]
   s.require_paths = ["lib"]
