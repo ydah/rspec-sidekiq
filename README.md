@@ -40,6 +40,9 @@ end
 
 * [`enqueue_sidekiq_job`](#enqueue_sidekiq_job)
 * [`have_enqueued_sidekiq_job`](#have_enqueued_sidekiq_job)
+* [`have_job`](#have_job)
+* [`have_job_option`](#have_job_option)
+* [`have_job_options`](#have_job_options)
 * [`be_processed_in`](#be_processed_in)
 * [`be_retryable`](#be_retryable)
 * [`save_backtrace`](#save_backtrace)
@@ -221,6 +224,84 @@ expect(Sidekiq::Worker).to have_enqueued_sidekiq_job(
 )
 ```
 
+### `have_job`
+
+Describes that a Sidekiq set (ScheduledSet, RetrySet, DeadSet) should contain a job. Typically used together with [`stub_named_queues`](#stub_named_queues).
+
+```ruby
+# Match any job in the set
+expect(Sidekiq::ScheduledSet.new).to have_job
+
+# Match a specific job class
+expect(Sidekiq::ScheduledSet.new).to have_job(AwesomeJob)
+
+# With specific arguments
+expect(Sidekiq::ScheduledSet.new).to have_job(AwesomeJob).with('arg')
+
+# A specific number of times
+expect(Sidekiq::ScheduledSet.new).to have_job(AwesomeJob).once
+expect(Sidekiq::ScheduledSet.new).to have_job(AwesomeJob).twice
+expect(Sidekiq::ScheduledSet.new).to have_job(AwesomeJob).exactly(3).times
+expect(Sidekiq::ScheduledSet.new).to have_job(AwesomeJob).at_least(1).time
+expect(Sidekiq::ScheduledSet.new).to have_job(AwesomeJob).at_most(2).times
+```
+
+#### Testing retry jobs
+
+```ruby
+expect(Sidekiq::RetrySet.new)
+  .to have_job(AwesomeJob)
+  .with('arg')
+  .with_error('something went wrong')
+  .with_error_class(RuntimeError)
+  .with_retry_count(2)
+```
+
+#### Testing dead jobs
+
+```ruby
+expect(Sidekiq::DeadSet.new)
+  .to have_job(AwesomeJob)
+  .with('arg')
+  .died_within(1.hour)
+```
+
+#### Scanning with a pattern
+
+Use `.scanning(pattern)` to filter by a glob-style pattern matched against the job's JSON representation:
+
+```ruby
+expect(Sidekiq::ScheduledSet.new).to have_job(AwesomeJob).scanning("*some_trace_id*")
+```
+
+### `have_job_option`
+
+Describes a single Sidekiq option set on a job class:
+
+```ruby
+class AwesomeJob
+  include Sidekiq::Job
+  sidekiq_options retry: 5, queue: 'critical', dead: false
+end
+
+expect(AwesomeJob).to have_job_option(:retry, 5)
+expect(AwesomeJob).to have_job_option(:queue, 'critical')
+expect(AwesomeJob).to have_job_option(:dead, false)
+```
+
+### `have_job_options`
+
+Describes multiple Sidekiq options set on a job class:
+
+```ruby
+class AwesomeJob
+  include Sidekiq::Job
+  sidekiq_options retry: 5, queue: 'critical', backtrace: true
+end
+
+expect(AwesomeJob).to have_job_options(retry: 5, queue: 'critical', backtrace: true)
+```
+
 ### `be_processed_in`
 
 *Describes the queue that a job should be processed in*
@@ -363,8 +444,54 @@ end
 
 ## Helpers
 
+* [`stub_named_queues`](#stub_named_queues)
 * [Batches (Sidekiq Pro) _experimental_](#batches)
 * [`within_sidekiq_retries_exhausted_block`](#within_sidekiq_retries_exhausted_block)
+
+### `stub_named_queues`
+
+If you need to test jobs in Sidekiq's named sets (ScheduledSet, RetrySet, DeadSet) without
+a Redis instance, opt-in with `stub_named_queues: true`. This replaces those sets with
+in-memory implementations backed by a `JobStore`.
+
+```ruby
+RSpec.describe "Scheduled jobs", stub_named_queues: true do
+  it "schedules a job" do
+    AwesomeJob.perform_at(1.hour.from_now, 'arg')
+
+    expect(Sidekiq::ScheduledSet.new).to have_job(AwesomeJob).with('arg')
+  end
+
+  it "tracks retry jobs via the job store" do
+    store = RSpec::Sidekiq::NamedQueues.job_store
+    store.add_retry(
+      "class" => "AwesomeJob",
+      "args" => ["arg"],
+      "error_message" => "boom",
+      "error_class" => "RuntimeError",
+      "retry_count" => 1
+    )
+
+    expect(Sidekiq::RetrySet.new)
+      .to have_job(AwesomeJob)
+      .with_error('boom')
+      .with_retry_count(1)
+  end
+
+  it "tracks dead jobs via the job store" do
+    store = RSpec::Sidekiq::NamedQueues.job_store
+    store.add_dead(
+      "class" => "AwesomeJob",
+      "args" => ["arg"],
+      "failed_at" => Time.now.to_f
+    )
+
+    expect(Sidekiq::DeadSet.new)
+      .to have_job(AwesomeJob)
+      .died_within(1.minute)
+  end
+end
+```
 
 ### Batches
 
