@@ -4,96 +4,61 @@ require 'spec_helper'
 require 'json'
 
 RSpec.describe 'have_job matcher' do
-  FakeEntry = Struct.new(:item) do
-    def klass
-      item["class"]
-    end
-
-    def wrapped
-      item["wrapped"]
-    end
-
-    def args
-      item["args"]
-    end
-
-    def error_message
-      item["error_message"]
-    end
-
-    def error_class
-      item["error_class"]
-    end
-
-    def retry_count
-      item["retry_count"]
-    end
-
-    def failed_at
-      item["failed_at"]
-    end
-  end
-
-  class FakeSet
-    include Enumerable
-
-    def initialize(entries)
-      @entries = entries
-    end
-
-    def each
-      return enum_for(:each) unless block_given?
-
-      @entries.each { |entry| yield entry }
-    end
-
-    def scan(pattern)
-      return enum_for(:scan, pattern) unless block_given?
-
-      @entries.select { |entry| File.fnmatch?(pattern, entry.item.to_json) }
-        .each { |entry| yield entry }
-    end
-  end
-
   let(:worker) { create_worker }
 
+  def build_scheduled_set(*items)
+    store = RSpec::Sidekiq::NamedQueues::JobStore.new
+    items.each { |item| store.push(item.merge("at" => 1.hour.from_now.to_f)) }
+    RSpec::Sidekiq::NamedQueues::NullScheduledSet.new(store)
+  end
+
+  def build_retry_set(*items)
+    store = RSpec::Sidekiq::NamedQueues::JobStore.new
+    items.each { |item| store.add_retry(item) }
+    RSpec::Sidekiq::NamedQueues::NullRetrySet.new(store)
+  end
+
+  def build_dead_set(*items)
+    store = RSpec::Sidekiq::NamedQueues::JobStore.new
+    items.each { |item| store.add_dead(item) }
+    RSpec::Sidekiq::NamedQueues::NullDeadSet.new(store)
+  end
+
   it 'matches scheduled jobs with arguments' do
-    entry = FakeEntry.new({ "class" => worker.to_s, "args" => ["arg"] })
-    set = FakeSet.new([entry])
+    set = build_scheduled_set({ "class" => worker.to_s, "args" => ["arg"] })
 
     expect(set).to have_job(worker).with('arg')
   end
 
   it 'matches any job when class is omitted' do
-    entry = FakeEntry.new({ "class" => worker.to_s, "args" => ["arg"] })
-    set = FakeSet.new([entry])
+    set = build_scheduled_set({ "class" => worker.to_s, "args" => ["arg"] })
 
     expect(set).to have_job
   end
 
   it 'supports count chaining' do
-    entries = Array.new(2) { FakeEntry.new({ "class" => worker.to_s, "args" => ["arg"] }) }
-    set = FakeSet.new(entries)
+    set = build_scheduled_set(
+      { "class" => worker.to_s, "args" => ["arg"] },
+      { "class" => worker.to_s, "args" => ["arg"] }
+    )
 
     expect(set).to have_job(worker).with('arg').twice
   end
 
   it 'supports scanning filters' do
-    entry = FakeEntry.new({ "class" => worker.to_s, "args" => ["arg"] })
-    set = FakeSet.new([entry])
+    set = build_scheduled_set({ "class" => worker.to_s, "args" => ["arg"] })
 
     expect(set).to have_job(worker).scanning("*#{worker}*")
   end
 
   it 'supports retry set chains' do
-    entry = FakeEntry.new({
+    set = build_retry_set({
       "class" => worker.to_s,
       "args" => ["arg"],
       "error_message" => "boom",
       "error_class" => "RuntimeError",
       "retry_count" => 2
     })
-    set = FakeSet.new([entry])
 
     expect(set)
       .to have_job(worker)
@@ -104,12 +69,11 @@ RSpec.describe 'have_job matcher' do
   end
 
   it 'supports dead set chains' do
-    entry = FakeEntry.new({
+    set = build_dead_set({
       "class" => worker.to_s,
       "args" => ["arg"],
       "failed_at" => Time.now.to_f
     })
-    set = FakeSet.new([entry])
 
     expect(set)
       .to have_job(worker)
