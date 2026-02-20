@@ -20,6 +20,9 @@ RSpec.describe 'Retries Exhausted block' do
     end
   end
 
+  class WorkerWithoutRetriesExhaustedBlock < TestWorkerAlternative
+  end
+
   it 'has an exhausted message' do
     expect(FooClass.default_retries_exhausted_message).to eq({
                                                                "args" => [],
@@ -47,5 +50,14 @@ RSpec.describe 'Retries Exhausted block' do
       expect(FooClass).to receive(:foo).with(FooClass.default_retries_exhausted_message)
       expect(FooClass).to receive(:baz).with(FooClass.default_retries_exhausted_exception)
     end
+  end
+
+  it 'raises a helpful error when retries exhausted block is not defined' do
+    expect do
+      WorkerWithoutRetriesExhaustedBlock.within_sidekiq_retries_exhausted_block { nil }
+    end.to raise_error(
+      ArgumentError,
+      'Define `sidekiq_retries_exhausted` before calling `within_sidekiq_retries_exhausted_block`'
+    )
   end
 end
