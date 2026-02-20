@@ -30,6 +30,7 @@ RSpec.configure do |config|
 
   config.before(:suite) do
     require "sidekiq/rails" if config.sidekiq_gte_7
+    Sidekiq.logger.level = Logger::WARN
     ActiveJob::Base.queue_adapter = :sidekiq
     ActiveJob::Base.logger.level = :warn
 
